@@ -171,9 +171,9 @@ mvn test
 
 ---
 
-## 📚 Interview Guide
+## 📚 Architecture & System Design Deep-Dive
 
-For a deep dive into the system design, concurrency choices, and trade-offs made in this project, read the [System Design & Interview Questions Guide](./docs/INTERVIEW_QUESTIONS.md).
+For a detailed analysis of the distributed design decisions, trade-offs, and failure mitigations implemented in this project, read the [Architecture & System Design Guide](./docs/ARCHITECTURE.md).
 
 ---
 
