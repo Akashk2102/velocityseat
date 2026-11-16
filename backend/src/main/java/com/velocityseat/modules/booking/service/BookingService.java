@@ -6,13 +6,14 @@ import com.velocityseat.common.exception.ResourceNotFoundException;
 import com.velocityseat.modules.booking.dto.BookingResponse;
 import com.velocityseat.modules.booking.dto.ConfirmBookingRequest;
 import com.velocityseat.modules.booking.model.*;
+import com.velocityseat.modules.booking.event.BookingCancelledInternalEvent;
+import com.velocityseat.modules.booking.event.BookingConfirmedInternalEvent;
 import com.velocityseat.modules.booking.repository.BookingRepository;
 import com.velocityseat.modules.event.model.EventSeat;
 import com.velocityseat.modules.event.model.SeatStatus;
 import com.velocityseat.modules.event.repository.EventSeatRepository;
 import com.velocityseat.modules.notification.event.BookingCancelledEvent;
 import com.velocityseat.modules.notification.event.BookingConfirmedEvent;
-import com.velocityseat.modules.notification.producer.BookingEventProducer;
 import com.velocityseat.modules.reservation.dto.ReservationPayload;
 import com.velocityseat.modules.reservation.model.ReservationStatus;
 import com.velocityseat.modules.reservation.model.SeatReservation;
@@ -23,6 +24,7 @@ import com.velocityseat.modules.user.model.User;
 import com.velocityseat.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,7 +45,7 @@ public class BookingService {
     private final UserRepository userRepository;
     private final SeatReservationRepository seatReservationRepository;
     private final RedisSeatLockService redisSeatLockService;
-    private final BookingEventProducer bookingEventProducer;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public BookingResponse confirmBooking(String userEmail, String idempotencyKey, ConfirmBookingRequest request) {
@@ -77,9 +79,12 @@ public class BookingService {
         }
 
         ReservationPayload payload = redisSeatLockService.getReservationPayload(request.getReservationToken());
-        List<Long> seatIds = (payload != null) ? payload.getSeatIds() : List.of();
-        if (seatIds.isEmpty()) {
-            throw new BadRequestException("No active seat hold found in cache for token: " + request.getReservationToken());
+        List<Long> seatIds = (payload != null && payload.getSeatIds() != null && !payload.getSeatIds().isEmpty())
+                ? payload.getSeatIds()
+                : reservation.getSeatIds(); // Persistent DB fallback ensures Redis cache loss never breaks checkout!
+
+        if (seatIds == null || seatIds.isEmpty()) {
+            throw new BadRequestException("No active seat hold found for token: " + request.getReservationToken());
         }
 
         // 4. PESSIMISTIC WRITE LOCK on PostgreSQL: SELECT ... FOR UPDATE
@@ -143,7 +148,7 @@ public class BookingService {
         seatReservationRepository.save(reservation);
         redisSeatLockService.releaseSeatHolds(reservation.getEvent().getId(), seatIds, request.getReservationToken());
 
-        // 9. ASYNCHRONOUS KAFKA STREAMING: Dispatch event to Kafka
+        // 9. ASYNCHRONOUS KAFKA STREAMING: Dispatch event to Kafka (Guaranteed AFTER commit via TransactionalEventListener)
         List<String> seatLabels = lockedSeats.stream()
                 .map(s -> s.getSeat().getSection() + " Row " + s.getSeat().getRowNumber() + " Seat " + s.getSeat().getSeatNumber())
                 .toList();
@@ -163,7 +168,7 @@ public class BookingService {
                 .confirmedAt(Instant.now())
                 .build();
 
-        bookingEventProducer.sendBookingConfirmedEvent(event);
+        eventPublisher.publishEvent(new BookingConfirmedInternalEvent(event));
 
         log.info("Booking confirmed successfully. Reference: {}, Amount: ${}", bookingReference, totalAmount);
         return BookingResponse.fromEntity(savedBooking);
@@ -232,7 +237,7 @@ public class BookingService {
         }
         bookingRepository.save(booking);
 
-        // 4. ASYNCHRONOUS KAFKA STREAMING: Dispatch cancellation event
+        // 4. ASYNCHRONOUS KAFKA STREAMING: Dispatch cancellation event strictly AFTER commit
         BookingCancelledEvent event = BookingCancelledEvent.builder()
                 .bookingReference(bookingReference)
                 .userId(user.getId())
@@ -243,7 +248,7 @@ public class BookingService {
                 .refundAmount(booking.getTotalAmount())
                 .cancelledAt(Instant.now())
                 .build();
-        bookingEventProducer.sendBookingCancelledEvent(event);
+        eventPublisher.publishEvent(new BookingCancelledInternalEvent(event));
 
         log.info("Booking {} successfully cancelled and seats released", bookingReference);
     }

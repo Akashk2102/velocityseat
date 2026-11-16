@@ -5,6 +5,7 @@ import com.velocityseat.common.exception.ResourceNotFoundException;
 import com.velocityseat.modules.event.dto.CreateEventRequest;
 import com.velocityseat.modules.event.dto.EventResponse;
 import com.velocityseat.modules.event.dto.EventSeatResponse;
+import com.velocityseat.modules.event.dto.UpdateEventRequest;
 import com.velocityseat.modules.event.model.*;
 import com.velocityseat.modules.event.repository.EventRepository;
 import com.velocityseat.modules.event.repository.EventSeatRepository;
@@ -132,5 +133,54 @@ public class EventService {
                 .stream()
                 .map(EventSeatResponse::fromEntity)
                 .toList();
+    }
+
+    @Transactional
+    public EventResponse updateEvent(Long eventId, UpdateEventRequest request) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
+
+        if (request.getTitle() != null && !request.getTitle().isBlank()) {
+            event.setTitle(request.getTitle().trim());
+        }
+        if (request.getDescription() != null) {
+            event.setDescription(request.getDescription().trim());
+        }
+        if (request.getCategory() != null) {
+            event.setCategory(request.getCategory());
+        }
+        if (request.getStatus() != null) {
+            event.setStatus(request.getStatus());
+        }
+        if (request.getStartTime() != null) {
+            event.setStartTime(request.getStartTime());
+        }
+        if (request.getEndTime() != null) {
+            if (request.getStartTime() != null && !request.getEndTime().isAfter(request.getStartTime())) {
+                throw new BadRequestException("End time must be after start time");
+            }
+            event.setEndTime(request.getEndTime());
+        }
+
+        Event updated = eventRepository.save(event);
+        long total = eventSeatRepository.countByEventId(eventId);
+        long available = eventSeatRepository.countByEventIdAndStatus(eventId, SeatStatus.AVAILABLE);
+        return EventResponse.fromEntity(updated, total, available);
+    }
+
+    @Transactional
+    public void cancelOrDeleteEvent(Long eventId) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
+
+        long bookedSeats = eventSeatRepository.countByEventIdAndStatus(eventId, SeatStatus.BOOKED);
+        if (bookedSeats > 0) {
+            // Cannot hard delete an event with active bookings; mark status as CANCELLED
+            event.setStatus(EventStatus.CANCELLED);
+            eventRepository.save(event);
+        } else {
+            // Safe to delete if no bookings exist
+            eventRepository.delete(event);
+        }
     }
 }

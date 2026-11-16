@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { venueApi, eventApi } from '../api/endpoints';
-import { Venue, EventCategory } from '../types';
-import { Building2, Grid, CalendarPlus, CheckCircle, AlertCircle } from 'lucide-react';
+import { venueApi, eventApi, adminApi } from '../api/endpoints';
+import { Venue, EventCategory, AdminStats } from '../types';
+import { Building2, Grid, CalendarPlus, CheckCircle, AlertCircle, BarChart3, DollarSign, Ticket, Users, Clock } from 'lucide-react';
 
 export const AdminPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'venue' | 'seats' | 'event'>('venue');
+  const [activeTab, setActiveTab] = useState<'venue' | 'seats' | 'event' | 'analytics'>('analytics');
   const [venues, setVenues] = useState<Venue[]>([]);
+  const [stats, setStats] = useState<AdminStats | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   // Form states
   const [venueForm, setVenueForm] = useState({
@@ -53,8 +55,21 @@ export const AdminPage: React.FC = () => {
     }
   };
 
+  const loadStats = async () => {
+    try {
+      setStatsLoading(true);
+      const data = await adminApi.getStats();
+      setStats(data);
+    } catch (err) {
+      console.error('Failed to load admin stats', err);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadVenues();
+    loadStats();
   }, []);
 
   const clearNotifications = () => {
@@ -164,13 +179,29 @@ export const AdminPage: React.FC = () => {
       )}
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-800 mb-8 gap-4">
+      <div className="flex border-b border-slate-800 mb-8 gap-4 overflow-x-auto">
+        <button
+          onClick={() => {
+            clearNotifications();
+            setActiveTab('analytics');
+            loadStats();
+          }}
+          className={`pb-4 px-2 text-sm font-semibold flex items-center gap-2 border-b-2 whitespace-nowrap transition-all ${
+            activeTab === 'analytics'
+              ? 'border-indigo-500 text-white'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <BarChart3 className="w-4 h-4" />
+          Live Analytics
+        </button>
+
         <button
           onClick={() => {
             clearNotifications();
             setActiveTab('venue');
           }}
-          className={`pb-4 px-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-all ${
+          className={`pb-4 px-2 text-sm font-semibold flex items-center gap-2 border-b-2 whitespace-nowrap transition-all ${
             activeTab === 'venue'
               ? 'border-indigo-500 text-white'
               : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -210,6 +241,90 @@ export const AdminPage: React.FC = () => {
           3. Publish Event
         </button>
       </div>
+
+      {/* TAB 0: LIVE ANALYTICS */}
+      {activeTab === 'analytics' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-white">Real-Time Platform Performance</h3>
+            <button
+              onClick={loadStats}
+              disabled={statsLoading}
+              className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              {statsLoading ? 'Refreshing...' : 'Refresh Metrics'}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+              <div className="flex items-center justify-between text-slate-400 mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider">Gross Revenue</span>
+                <DollarSign className="w-5 h-5 text-emerald-400" />
+              </div>
+              <span className="text-3xl font-black text-white font-mono">
+                ${stats ? stats.totalGrossRevenue.toFixed(2) : '0.00'}
+              </span>
+              <span className="block text-xs text-slate-500 mt-1">Confirmed transactions</span>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+              <div className="flex items-center justify-between text-slate-400 mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider">Tickets Sold</span>
+                <Ticket className="w-5 h-5 text-indigo-400" />
+              </div>
+              <span className="text-3xl font-black text-white font-mono">
+                {stats ? stats.totalTicketsSold : 0}
+              </span>
+              <span className="block text-xs text-slate-500 mt-1">Seats permanently booked</span>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+              <div className="flex items-center justify-between text-slate-400 mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider">Total Bookings</span>
+                <Users className="w-5 h-5 text-purple-400" />
+              </div>
+              <span className="text-3xl font-black text-white font-mono">
+                {stats ? stats.totalBookings : 0}
+              </span>
+              <span className="block text-xs text-slate-500 mt-1">Completed orders</span>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+              <div className="flex items-center justify-between text-slate-400 mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider">Active Seat Holds</span>
+                <Clock className="w-5 h-5 text-amber-400" />
+              </div>
+              <span className="text-3xl font-black text-amber-400 font-mono">
+                {stats ? stats.activeHoldsCount : 0}
+              </span>
+              <span className="block text-xs text-slate-500 mt-1">Currently in 10-min Redis TTL</span>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+              <div className="flex items-center justify-between text-slate-400 mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider">Events Active</span>
+                <CalendarPlus className="w-5 h-5 text-sky-400" />
+              </div>
+              <span className="text-3xl font-black text-white font-mono">
+                {stats ? stats.totalEvents : 0}
+              </span>
+              <span className="block text-xs text-slate-500 mt-1">Shows scheduled</span>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+              <div className="flex items-center justify-between text-slate-400 mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider">Venues Registered</span>
+                <Building2 className="w-5 h-5 text-blue-400" />
+              </div>
+              <span className="text-3xl font-black text-white font-mono">
+                {stats ? stats.totalVenues : 0}
+              </span>
+              <span className="block text-xs text-slate-500 mt-1">Arenas and stadiums</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TAB 1: CREATE VENUE */}
       {activeTab === 'venue' && (

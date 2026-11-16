@@ -102,6 +102,26 @@ This document details the architectural decisions, concurrency controls, and dis
 
 ---
 
+### ADR-006: Distributed Redis Sliding-Window Rate Limiting
+- **Context:** High-demand ticket sales attract high-frequency scraping bots and credential-stuffing attacks against `/auth/login` and `/reservations/hold`.
+- **Decision:**
+  - Implemented `RateLimitingFilter` operating ahead of security authentication.
+  - Granular window policies:
+    - **Sensitive Endpoints** (`/auth/login`, `/auth/register`, `/reservations/hold`, `/bookings/confirm`): 15 requests per minute per IP.
+    - **General Endpoints** (`/events/**`, `/venues/**`): 120 requests per minute per IP.
+  - Employs Redis atomic counters (`opsForValue().increment()`) with automatic 60-second key expiration. Exceeded requests immediately terminate with `HTTP 429 Too Many Requests` and a `Retry-After: 60` response header.
+
+---
+
+### ADR-007: Transaction-Bound After-Commit Event Dispatch
+- **Context:** If Kafka events are published inside a `@Transactional` block before database commit, a subsequent database commit failure produces "ghost tickets" (Kafka consumers process tickets for a database transaction that rolled back).
+- **Decision:**
+  - Implemented Spring's `@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)`.
+  - The business service emits an internal Spring application event (`BookingConfirmedInternalEvent`).
+  - The listener guarantees that Kafka messages are dispatched to the broker **strictly after** PostgreSQL issues a successful transaction commit confirmation.
+
+---
+
 ## 3. Failure Modes & Self-Healing Mechanisms
 
 | Failure Scenario | Mitigation Strategy |

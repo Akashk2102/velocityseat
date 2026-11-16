@@ -152,4 +152,38 @@ class EventServiceTest {
 
         verify(eventRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("Should successfully update event fields")
+    void updateEvent_Success() {
+        com.velocityseat.modules.event.dto.UpdateEventRequest updateReq =
+                com.velocityseat.modules.event.dto.UpdateEventRequest.builder()
+                        .title("Coldplay Updated Title")
+                        .description("Updated description")
+                        .build();
+
+        when(eventRepository.findById(10L)).thenReturn(Optional.of(mockEvent));
+        when(eventRepository.save(any(Event.class))).thenReturn(mockEvent);
+        when(eventSeatRepository.countByEventId(10L)).thenReturn(100L);
+        when(eventSeatRepository.countByEventIdAndStatus(10L, SeatStatus.AVAILABLE)).thenReturn(90L);
+
+        EventResponse updated = eventService.updateEvent(10L, updateReq);
+
+        assertThat(updated).isNotNull();
+        assertThat(mockEvent.getTitle()).isEqualTo("Coldplay Updated Title");
+        verify(eventRepository, times(1)).save(mockEvent);
+    }
+
+    @Test
+    @DisplayName("Should mark event as CANCELLED instead of deleting if bookings exist")
+    void cancelOrDeleteEvent_WithBookings_MarksCancelled() {
+        when(eventRepository.findById(10L)).thenReturn(Optional.of(mockEvent));
+        when(eventSeatRepository.countByEventIdAndStatus(10L, SeatStatus.BOOKED)).thenReturn(5L);
+
+        eventService.cancelOrDeleteEvent(10L);
+
+        assertThat(mockEvent.getStatus()).isEqualTo(EventStatus.CANCELLED);
+        verify(eventRepository, times(1)).save(mockEvent);
+        verify(eventRepository, never()).delete(any());
+    }
 }

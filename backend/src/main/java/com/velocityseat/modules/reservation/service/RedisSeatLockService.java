@@ -39,8 +39,10 @@ public class RedisSeatLockService {
      */
     public boolean acquireSeatHolds(Long eventId, List<Long> seatIds, String reservationToken, long ttlSeconds) {
         List<String> successfullyAcquiredKeys = new ArrayList<>();
+        // Sort seat IDs to guarantee strict lock ordering across all concurrent threads
+        List<Long> sortedSeatIds = seatIds.stream().sorted().toList();
 
-        for (Long seatId : seatIds) {
+        for (Long seatId : sortedSeatIds) {
             String lockKey = buildSeatKey(eventId, seatId);
             Boolean acquired = stringRedisTemplate.opsForValue()
                     .setIfAbsent(lockKey, reservationToken, Duration.ofSeconds(ttlSeconds));

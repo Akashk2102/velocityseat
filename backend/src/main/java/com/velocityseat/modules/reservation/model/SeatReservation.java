@@ -45,6 +45,15 @@ public class SeatReservation {
     @Builder.Default
     private ReservationStatus status = ReservationStatus.ACTIVE;
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+        name = "reservation_seats",
+        joinColumns = @JoinColumn(name = "reservation_id")
+    )
+    @Column(name = "event_seat_id", nullable = false)
+    @Builder.Default
+    private java.util.List<Long> seatIds = new java.util.ArrayList<>();
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

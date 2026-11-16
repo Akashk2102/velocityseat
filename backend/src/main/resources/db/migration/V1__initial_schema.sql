@@ -91,6 +91,12 @@ CREATE TABLE IF NOT EXISTS seat_reservations (
 CREATE INDEX IF NOT EXISTS idx_reservations_token ON seat_reservations(reservation_token);
 CREATE INDEX IF NOT EXISTS idx_reservations_expiry ON seat_reservations(expires_at, status);
 
+CREATE TABLE IF NOT EXISTS reservation_seats (
+    reservation_id BIGINT NOT NULL REFERENCES seat_reservations(id) ON DELETE CASCADE,
+    event_seat_id BIGINT NOT NULL REFERENCES event_seats(id) ON DELETE CASCADE,
+    PRIMARY KEY (reservation_id, event_seat_id)
+);
+
 -- 6. BOOKINGS & PAYMENTS
 CREATE TABLE IF NOT EXISTS bookings (
     id BIGSERIAL PRIMARY KEY,

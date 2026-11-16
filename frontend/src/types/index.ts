@@ -108,3 +108,12 @@ export interface Venue {
   totalCapacity: number;
   configuredSeatsCount: number;
 }
+
+export interface AdminStats {
+  totalVenues: number;
+  totalEvents: number;
+  totalBookings: number;
+  totalTicketsSold: number;
+  totalGrossRevenue: number;
+  activeHoldsCount: number;
+}

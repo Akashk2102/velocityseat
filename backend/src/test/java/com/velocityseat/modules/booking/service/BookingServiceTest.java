@@ -58,7 +58,7 @@ class BookingServiceTest {
     private RedisSeatLockService redisSeatLockService;
 
     @Mock
-    private com.velocityseat.modules.notification.producer.BookingEventProducer bookingEventProducer;
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private BookingService bookingService;
@@ -139,7 +139,7 @@ class BookingServiceTest {
 
         verify(eventSeatRepository, times(1)).saveAll(anyList());
         verify(redisSeatLockService, times(1)).releaseSeatHolds(eq(10L), eq(List.of(501L)), eq("res_valid_token"));
-        verify(bookingEventProducer, times(1)).sendBookingConfirmedEvent(any());
+        verify(eventPublisher, times(1)).publishEvent(any(com.velocityseat.modules.booking.event.BookingConfirmedInternalEvent.class));
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.velocityseat.common.dto.ApiResponse;
 import com.velocityseat.modules.event.dto.CreateEventRequest;
 import com.velocityseat.modules.event.dto.EventResponse;
 import com.velocityseat.modules.event.dto.EventSeatResponse;
+import com.velocityseat.modules.event.dto.UpdateEventRequest;
 import com.velocityseat.modules.event.model.EventCategory;
 import com.velocityseat.modules.event.model.EventStatus;
 import com.velocityseat.modules.event.service.EventService;
@@ -68,5 +69,25 @@ public class EventController {
     @Operation(summary = "Get available event seats only", description = "Returns seats with status AVAILABLE for quick booking view")
     public ResponseEntity<ApiResponse<List<EventSeatResponse>>> getAvailableSeats(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(eventService.getAvailableSeats(id)));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Update event (Admin only)", description = "Updates title, description, time range, or status of an event")
+    public ResponseEntity<ApiResponse<EventResponse>> updateEvent(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateEventRequest request) {
+        EventResponse response = eventService.updateEvent(id, request);
+        return ResponseEntity.ok(ApiResponse.success(response, "Event updated successfully"));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Cancel or delete event (Admin only)", description = "Deletes event or sets status to CANCELLED if bookings exist")
+    public ResponseEntity<ApiResponse<Void>> deleteEvent(@PathVariable Long id) {
+        eventService.cancelOrDeleteEvent(id);
+        return ResponseEntity.ok(ApiResponse.success(null, "Event cancelled or removed successfully"));
     }
 }

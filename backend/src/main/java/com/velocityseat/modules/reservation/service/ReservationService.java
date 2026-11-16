@@ -109,11 +109,12 @@ public class ReservationService {
         }
         eventSeatRepository.saveAll(requestedSeats);
 
-        // 4. Save DB audit record
+        // 4. Save DB audit record (persisting seat IDs directly in PostgreSQL)
         SeatReservation reservation = SeatReservation.builder()
                 .reservationToken(reservationToken)
                 .user(user)
                 .event(event)
+                .seatIds(request.getSeatIds())
                 .expiresAt(expiresAt)
                 .status(ReservationStatus.ACTIVE)
                 .build();
@@ -219,16 +220,17 @@ public class ReservationService {
             for (SeatReservation res : expiredReservations) {
                 res.setStatus(ReservationStatus.EXPIRED);
 
-                // Fetch seats for this event that are marked HELD
-                List<EventSeat> heldSeats = eventSeatRepository.findByEventIdAndStatus(
-                        res.getEvent().getId(), SeatStatus.HELD);
-
-                for (EventSeat s : heldSeats) {
-                    if (!redisSeatLockService.isSeatHeldInRedis(res.getEvent().getId(), s.getId())) {
-                        s.setStatus(SeatStatus.AVAILABLE);
+                // Read the exact seat IDs directly from the database record!
+                List<Long> seatIds = res.getSeatIds();
+                if (!seatIds.isEmpty()) {
+                    List<EventSeat> heldSeats = eventSeatRepository.findAllById(seatIds);
+                    for (EventSeat s : heldSeats) {
+                        if (s.getStatus() == SeatStatus.HELD) {
+                            s.setStatus(SeatStatus.AVAILABLE);
+                        }
                     }
+                    eventSeatRepository.saveAll(heldSeats);
                 }
-                eventSeatRepository.saveAll(heldSeats);
             }
             seatReservationRepository.saveAll(expiredReservations);
         }

@@ -1,5 +1,6 @@
 package com.velocityseat.config;
 
+import com.velocityseat.common.ratelimit.RateLimitingFilter;
 import com.velocityseat.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,6 +33,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final RateLimitingFilter rateLimitingFilter;
     private final UserDetailsService userDetailsService;
 
     @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:5173}")
@@ -58,6 +60,7 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authenticationProvider(authenticationProvider())
+            .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

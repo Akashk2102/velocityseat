@@ -1,5 +1,6 @@
 import api from './client';
 import {
+  AdminStats,
   ApiResponse,
   AuthResponse,
   BookingResponse,
@@ -107,6 +108,13 @@ export const venueApi = {
   },
   generateSeats: async (venueId: number, data: any) => {
     const res = await api.post<ApiResponse<any[]>>(`/venues/${venueId}/seats/generate`, data);
+    return res.data.data;
+  },
+};
+
+export const adminApi = {
+  getStats: async () => {
+    const res = await api.get<ApiResponse<AdminStats>>('/admin/stats');
     return res.data.data;
   },
 };
