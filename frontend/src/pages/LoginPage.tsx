@@ -47,6 +47,27 @@ export const LoginPage: React.FC = () => {
           </div>
         )}
 
+        {/* Demo Quick-Fill Buttons */}
+        <div className="mb-6 p-3 rounded-2xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-between text-xs">
+          <span className="text-slate-400 font-medium">Quick Demo:</span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => { setEmail('customer@velocityseat.com'); setPassword('password123'); }}
+              className="px-2.5 py-1 rounded-lg bg-indigo-600/30 text-indigo-300 hover:bg-indigo-600/50 border border-indigo-500/40 font-medium transition-all"
+            >
+              Customer
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEmail('admin@velocityseat.com'); setPassword('password123'); }}
+              className="px-2.5 py-1 rounded-lg bg-purple-600/30 text-purple-300 hover:bg-purple-600/50 border border-purple-500/40 font-medium transition-all"
+            >
+              Admin
+            </button>
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">

@@ -103,6 +103,12 @@ docker compose -f docker/docker-compose.yml up --build -d
 - **Redis:** `localhost:6379`
 - **Kafka:** `localhost:9092`
 
+### 🔑 Demo Accounts (Pre-seeded):
+| Role | Email | Password | Permissions & Features |
+|---|---|---|---|
+| **Admin** | `admin@velocityseat.com` | `password123` | Full Admin Dashboard, Real-Time Platform Analytics, Event & Venue Management |
+| **Customer** | `customer@velocityseat.com` | `password123` | Interactive Seating Grid, 10-Min Hold, Checkout, Ticket QR Pass, Cancellation |
+
 ---
 
 ## 💻 Local Development Setup
